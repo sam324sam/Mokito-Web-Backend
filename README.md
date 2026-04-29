@@ -240,3 +240,6 @@ mvn test
 
 
 Tutorial epico de conexion y uso del cloudfare tunel
+
+> [!WARNING]
+> Este proyecto está bajo una licencia personalizada que prohíbe el uso para entrenamiento de inteligencia artificial. Consulta el archivo [LICENSE](LICENSE) para más detalles.
