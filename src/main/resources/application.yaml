@@ -1,3 +1,5 @@
 spring:
+  main:
+    banner-mode: off
   application:
     name: mokito-web-backend

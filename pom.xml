@@ -5,12 +5,12 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.0.5</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<version>4.0.6</version>
+		<relativePath/>
 	</parent>
 	<groupId>com.mokito</groupId>
 	<artifactId>mokito-web-backend</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.1</version>
 	<name/>
 	<description/>
 	<url/>
@@ -26,9 +26,17 @@
 		<tag/>
 		<url/>
 	</scm>
+
 	<properties>
 		<java.version>17</java.version>
+		<!-- Nombre del ejecutable e instalador final -->
+		<app.name>MokitoWebBackend</app.name>
+		<!-- Carpeta AISLADA donde se copia el fat-jar antes de llamar a jpackage -->
+		<jpackage.input.dir>${project.build.directory}/jpackage-input</jpackage.input.dir>
+		<!-- Carpeta de salida del instalador (distinta de input y de target raíz) -->
+		<jpackage.output.dir>${project.build.directory}/jpackage-output</jpackage.output.dir>
 	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -38,7 +46,6 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-websocket</artifactId>
 		</dependency>
-
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
@@ -64,6 +71,8 @@
 
 	<build>
 		<plugins>
+
+			<!-- 1. Spring Boot: genera el fat-jar ejecutable -->
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
@@ -76,6 +85,9 @@
 					</excludes>
 				</configuration>
 			</plugin>
+
+
+			<!-- 2. Compilador con soporte Lombok -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -83,9 +95,7 @@
 					<execution>
 						<id>default-compile</id>
 						<phase>compile</phase>
-						<goals>
-							<goal>compile</goal>
-						</goals>
+						<goals><goal>compile</goal></goals>
 						<configuration>
 							<annotationProcessorPaths>
 								<path>
@@ -98,9 +108,7 @@
 					<execution>
 						<id>default-testCompile</id>
 						<phase>test-compile</phase>
-						<goals>
-							<goal>testCompile</goal>
-						</goals>
+						<goals><goal>testCompile</goal></goals>
 						<configuration>
 							<annotationProcessorPaths>
 								<path>
@@ -112,6 +120,84 @@
 					</execution>
 				</executions>
 			</plugin>
+
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>copy-jar-for-jpackage</id>
+						<phase>package</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<!-- Crea la carpeta de input limpia -->
+								<mkdir dir="${jpackage.input.dir}"/>
+								<!-- Copia SOLO el fat-jar (el que termina en .jar, no el original) -->
+								<copy todir="${jpackage.input.dir}" overwrite="true">
+									<fileset dir="${project.build.directory}">
+										<include name="${project.artifactId}-${project.version}.jar"/>
+									</fileset>
+								</copy>
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!--
+				4. jpackage: genera el instalador nativo.
+			-->
+			<plugin>
+				<groupId>org.panteleyev</groupId>
+				<artifactId>jpackage-maven-plugin</artifactId>
+				<version>1.6.5</version>
+				<configuration>
+					<!-- Tipo de paquete: app-image (sin instalador), dmg, pkg, exe, msi, deb, rpm -->
+					<type>APP_IMAGE</type>
+					<!--Icono -->
+					<icon>${project.basedir}/src/main/resources/package/favicon.ico</icon>
+
+					<!-- Carpeta que contiene ÚNICAMENTE el fat-jar -->
+					<input>${jpackage.input.dir}</input>
+
+					<!-- Carpeta de destino del instalador/imagen -->
+					<destination>${jpackage.output.dir}</destination>
+
+					<!-- Nombre de la aplicación y del ejecutable generado -->
+					<name>${app.name}</name>
+
+					<!-- JAR principal (el fat-jar de Spring Boot) -->
+					<mainJar>${project.artifactId}-${project.version}.jar</mainJar>
+
+					<!-- Clase principal de Spring Boot -->
+					<mainClass>org.springframework.boot.loader.launch.JarLauncher</mainClass>
+
+					<!-- Versión del instalador (jpackage exige formato X.Y.Z) -->
+					<appVersion>0.0.1</appVersion>
+
+					<!-- Le dice a jpackage que es una app de escritorio con ventana -->
+					<winConsole>false</winConsole>
+					
+					<!-- JVM flags opcionales -->
+					<javaOptions>
+						<javaOption>-Dfile.encoding=UTF-8</javaOption>
+						<javaOption>-Dspring.profiles.active=prod</javaOption>
+						<javaOption>-Djava.awt.headless=false</javaOption>
+						<javaOption>-XX:+ShowCodeDetailsInExceptionMessages</javaOption>
+					</javaOptions>
+					
+				</configuration>
+				<executions>
+					<execution>
+						<id>jpackage</id>
+						<!-- Se ejecuta en la fase verify, DESPUÉS de package (donde se copió el jar) -->
+						<phase>verify</phase>
+						<goals><goal>jpackage</goal></goals>
+					</execution>
+				</executions>
+			</plugin>
+
 		</plugins>
 	</build>
 

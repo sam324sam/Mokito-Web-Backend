@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketSession;
 
+import com.mokito.backend.gui.helpers.PlayerListener;
 import com.mokito.backend.model.entity.UserClient;
 
 @Component
@@ -15,14 +16,22 @@ public class WebSocketSessionManager {
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
     private final Map<String, UserClient> users = new ConcurrentHashMap<>();
 
+    // Pal Gui
+    private PlayerListener playerListener;
+
     public void addSession(String userId, UserClient user, WebSocketSession session) {
         sessions.put(userId, session);
         users.put(userId, user);
+        if (playerListener != null)
+            playerListener.onPlayerConnected(user.getName());
     }
 
     public void removeSession(String userId) {
+        UserClient user = users.get(userId);
         sessions.remove(userId);
         users.remove(userId);
+        if (playerListener != null && user != null)
+            playerListener.onPlayerDisconnected(user.getName());
     }
 
     public WebSocketSession getSession(String userId) {
@@ -40,4 +49,10 @@ public class WebSocketSessionManager {
     public Collection<UserClient> getAllUsers() {
         return users.values();
     }
+
+    // Parte para la gui
+    public void setPlayerListener(PlayerListener listener) {
+        this.playerListener = listener;
+    }
+
 }
