@@ -14,15 +14,12 @@ public class CustomFontLoader {
     public static Font loadFont(String resourcePath, float size) {
         try (InputStream is = CustomFontLoader.class.getResourceAsStream(resourcePath)) {
             if (is == null) {
-                System.out.println("No se encontró la fuente: " + resourcePath);
                 return new Font("Arial", Font.PLAIN, (int) size);
             }
             Font font = Font.createFont(Font.TRUETYPE_FONT, is);
             font = font.deriveFont(size);
-            System.out.println("Se a cargado la fuente");
             return font;
         } catch (FontFormatException | IOException e) {
-            System.out.println("No se a cargado la fuente");
             return new Font("Arial", Font.PLAIN, (int) size);
         }
     }

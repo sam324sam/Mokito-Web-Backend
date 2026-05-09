@@ -3,7 +3,6 @@
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-%236DB33F?style=flat-square&logo=springboot)
 ![WebSocket](https://img.shields.io/badge/WebSocket-%23000000?style=flat-square&logo=websocket)
 ![Maven](https://img.shields.io/badge/Maven-%23C71A36?style=flat-square&logo=apachemaven)
-![Lombok](https://img.shields.io/badge/Lombok-%23BC4521?style=flat-square&logo=java)
 
 (Prueba aun no esta terminado el readme)
 Backend en Spring Boot para un entorno colaborativo en tiempo real donde múltiples usuarios comparten un canvas con sus cursores y mascotas virtuales sincronizadas vía WebSocket.
@@ -14,10 +13,12 @@ Backend en Spring Boot para un entorno colaborativo en tiempo real donde múltip
 
 - Sincronización de cursores en tiempo real entre todos los usuarios conectados
 - Mascotas virtuales por usuario con posición persistente en sesión
+- Registro simultáneo usuario + mascota mediante mensaje `init_full`
 - Snapshot de estado completo al conectarse: nuevos usuarios reciben el estado de todos los que ya estaban
-- Broadcast automático de entradas y salidas de usuarios
+- Broadcast automático de entradas, salidas y actualizaciones decursores/mascotas
 - Limpieza automática de sesiones al desconectarse
 - Escalado de coordenadas adaptado a distintas resoluciones de canvas
+- Enrutamiento flexible de eventos WebSocket (init, init_full, user_data, init_pet, move_pet)
 
 ---
 
@@ -93,7 +94,7 @@ src/main/java/com/mokito/backend/
 │       └── AnimationSpriteClient.java# Sprite animado del usuario
 
 ├── router/
-│   └── EventRouter.java              # Enruta mensajes WebSocket (init_full, init, user_data, init_pet, move_pet) a los handlers
+│   └── EventRouter.java              # Enruta mensajes WebSocket entrantes: init_full, init, user_data, init_pet, move_pet
 
 ├── service/
 │   ├── WebSocketSessionManager.java  # Gestiona sesiones y usuarios en maps thread-safe (ConcurrentHashMap)
@@ -106,7 +107,7 @@ src/main/java/com/mokito/backend/
 
 ---
 
-### Flujo de conexión (Realizar en canvas y completar)
+### Flujo de conexión
 
 ```
 Cliente                          Servidor
@@ -115,18 +116,56 @@ Cliente                          Servidor
   │◄── { userId } ──────────────────┤
   │                                 │
   ├──WS connect ───────────────────►│
-  ├──{ type: "init", user } ───────►│  Registra usuario
-  │◄── snapshot de usuarios/pets ───┤  Estado actual de la sala
   │                                 │
-  ├──{ type: "init_pet", pet } ────►│  Registra mascota
-  │◄── broadcast init_pet ──────────┤  Todos reciben la nueva mascota
+  ├──{ type: "init_full",           │  Registra usuario Y mascota
+  │     user: { ... },              │  (ambos en un solo mensaje)
+  │     pet: { x, y } } ────────────►│
+  │                                 │
+  │◄── user_data [para cada         │  Snapshot: cursor + canvas
+  │    usuario existente] ──────────┤  de todos los usuarios
+  │◄── init_pet [para cada          │  Snapshot: posición de
+  │    mascota existente] ──────────┤  cada mascota existente
+  │                                 │
+  ├──{ type: "user_data",           │  Actualiza cursor (broadcast)
+  │     payload: { user: {...} } } ─►│
+  │                                 │
+  ├──{ type: "move_pet",            │  Actualiza mascota (broadcast)
+  │     payload: { pet_move: {...} } } ─►│
+```
+
+### Inicialización alternativa (solo usuario)
+
+Si el cliente solo envía `init` (sin `pet`), el servidor registra únicamente el usuario y envía el snapshot sin mascota:
+
+```
+Cliente                          Servidor
+  │                                 │
+  ├──{ type: "init",               │  Registra usuario
+  │     user: { ... } } ────────────►│  (sin mascota)
+  │                                 │
+  │◄── user_data [cada usuario] ────┤  Snapshot de cursores
+  │                                 │  (sin pets)
+```
+
+### Desconexión
+
+Al cerrarse la conexión WebSocket, el servidor notifica a todos los clientes:
+
+```
+Cliente                          Servidor
+  │                                 │
+  │    [conexión cerrada]           │
+  │                                 │◄── { type: "user_remove",
+  │                                    userId: "..." }
 ```
 
 ---
 
-### Mensajes que envía el cliente
+### Tipos de mensaje soportados
 
-**`init` — Registrar usuario al conectarse**
+#### Mensajes del cliente → servidor
+
+**`init` — Registrar usuario al conectarse** *(sin mascota)*
 
 ```json
 {
@@ -140,27 +179,41 @@ Cliente                          Servidor
 }
 ```
 
-**`init_pet` — Registrar mascota**
+**`init_full` — Registrar usuario y mascota simultáneamente** *(recomendado)*
 
 ```json
 {
-  "type": "init_pet",
+  "type": "init_full",
+  "user": {
+    "userId": "user123",
+    "name": "Mokito Friend",
+    "cursor": { "x": 100, "y": 200, "src": "cursor.png" },
+    "canvas": { "width": 1920, "height": 1080 }
+  },
   "pet": { "x": 150, "y": 250 }
 }
 ```
 
-**`user_data` — Actualizar posición del cursor** *(enviado cada network tick)*
+**`user_data` — Actualizar cursor del usuario** *(enviado cada network tick)*
 
 ```json
 {
   "type": "user_data",
-  "userId": "user123",
   "payload": {
     "user": {
       "cursor": { "x": 320, "y": 480, "src": "cursor.png" },
       "canvas": { "width": 1920, "height": 1080 }
     }
   }
+}
+```
+
+**`init_pet` — Registrar mascota** *(solo si no se usó `init_full`)*
+
+```json
+{
+  "type": "init_pet",
+  "pet": { "x": 150, "y": 250 }
 }
 ```
 
@@ -177,9 +230,9 @@ Cliente                          Servidor
 
 ---
 
-### Mensajes que recibe el cliente (broadcast)
+#### Mensajes del servidor → cliente (broadcast)
 
-**`user_data` — Estado de un usuario**
+**`user_data` — Estado actualizado de un usuario**
 
 ```json
 {
@@ -193,7 +246,7 @@ Cliente                          Servidor
 }
 ```
 
-**`init_pet` — Mascota registrada**
+**`init_pet` — Mascota registrada (todos los usuarios la reciben)**
 
 ```json
 {

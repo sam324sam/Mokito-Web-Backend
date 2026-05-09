@@ -20,10 +20,8 @@ public class EventRouter {
     }
 
     public void route(WebSocketSession session, JsonNode json, String type) {
-
         if (type.isEmpty())
             return;
-
         switch (type) {
 
             case "init_full":

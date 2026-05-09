@@ -82,7 +82,6 @@ public class PetDataHandler {
         petJson.put(USER_ID_KEY, userId);
 
         out.set(PET_MOVE_KEY, petJson);
-
         dispatcher.broadcast(out.toString());
     }
 }
