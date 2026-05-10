@@ -4,8 +4,9 @@
 ![WebSocket](https://img.shields.io/badge/WebSocket-%23000000?style=flat-square&logo=websocket)
 ![Maven](https://img.shields.io/badge/Maven-%23C71A36?style=flat-square&logo=apachemaven)
 
-(Prueba aun no esta terminado el readme)
 Backend en Spring Boot para un entorno colaborativo en tiempo real donde múltiples usuarios comparten un canvas con sus cursores y mascotas virtuales sincronizadas vía WebSocket.
+
+![Mokito GUI](githubAssest/Mokito-Gui.png)
 
 ---
 
@@ -277,11 +278,140 @@ Cliente                          Servidor
 
 ## Endpoints REST
 
+### Usuarios y Sesiones
+
 | Método | Ruta | Descripción |
 |---|---|---|
 | `POST` | `/login` | Crea sesión y devuelve `userId` |
 | `GET` | `/user/all` | Lista todos los usuarios conectados |
 | `GET` | `/user/ping` | Medición de latencia |
+
+### Mascotas y Animaciones
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/pet/{userId}/sprites` | Sube animaciones de mascota (multipart: files + metadata) |
+| `GET` | `/pet/{userId}/sprites` | Lista todas las animaciones de un usuario |
+| `GET` | `/pet/{userId}/sprites/{animationName}/image` | Obtiene la imagen de una animación específica |
+| `GET` | `/pet/sprites/all` | Obtiene todos los sprites de todos los usuarios |
+
+---
+
+## 📦 Gestión de Animaciones de Mascotas
+
+### Flujo de subida de animaciones
+
+El sistema permite a cada usuario subir múltiples sprites de animación para su mascota. Cada animación se compone de:
+
+- **Nombre único** (ej: `walk`, `idle`, `run`)
+- **Frame width/height** — dimensiones de cada frame en la sprite sheet
+- **Frame count** — número total de frames en lasheet
+- **Animation type** — tipo de animación (ej: `loop`, `once`)
+- **Imagen binaria** (PNG) — sprite sheet conteniendo todos los frames
+
+#### Ejemplo de request (multipart/form-data)
+
+```
+POST /pet/{userId}/sprites
+Content-Type: multipart/form-data
+
+--boundary
+Content-Disposition: form-data; name="files"; filename="walk.png"
+Content-Type: image/png
+
+<bytes de la imagen>
+--boundary
+Content-Disposition: form-data; name="metadata"
+Content-Type: application/json
+
+{
+  "name": "walk",
+  "frameWidth": 32,
+  "frameHeight": 32,
+  "frameCount": 8,
+  "animationType": "loop"
+}
+--boundary--
+```
+
+> **Nota:** La lista `files` y `metadata` debe tener el mismo número de elementos, emparejados por índice.
+
+#### Respuesta
+
+```http
+HTTP/1.1 200 OK
+```
+
+### Obtención de animaciones
+
+**Listar animaciones de un usuario:**
+
+```http
+GET /pet/{userId}/sprites
+```
+
+Respuesta:
+
+```json
+[
+  {
+    "name": "walk",
+    "src": "/pet/user123/sprites/walk/image",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frameCount": 8,
+    "animationType": "loop"
+  },
+  {
+    "name": "idle",
+    "src": "/pet/user123/sprites/idle/image",
+    "frameWidth": 32,
+    "frameHeight": 32,
+    "frameCount": 4,
+    "animationType": "loop"
+  }
+]
+```
+
+**Obtener imagen específica:**
+
+```http
+GET /pet/{userId}/sprites/{animationName}/image
+```
+
+Devuelve la imagen binaria en `image/png`.
+
+### Uso en tiempo real
+
+Una vez subidas las animaciones, el cliente puede enviar el nombre de la animación actual en los mensajes `move_pet`:
+
+```json
+{
+  "type": "move_pet",
+  "payload": {
+    "pet_move": {
+      "x": 200,
+      "y": 300,
+      "userId": "user123",
+      "currentAnimation": "walk"
+    }
+  }
+}
+```
+
+El servidor broadcastea la actualización a todos los usuarios conectados:
+
+```json
+{
+  "type": "pet_move",
+  "pet_move": {
+    "x": 200,
+    "y": 300,
+    "userId": "user123",
+    "currentAnimation": "walk"
+  }
+}
+```
 
 ---
 

@@ -6,8 +6,17 @@ import java.util.Map;
 public class PetClient {
     private int x;
     private int y;
+    private String currentAnimation;
     private Blob img;
     private Map<String, AnimationSpriteClient> animationSprite;
+
+    public String getCurrentAnimation() {
+        return currentAnimation;
+    }
+
+    public void setCurrentAnimation(String currentAnimation) {
+        this.currentAnimation = currentAnimation;
+    }
 
     public int getX() {
         return x;

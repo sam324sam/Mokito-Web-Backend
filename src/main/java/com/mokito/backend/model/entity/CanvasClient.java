@@ -20,6 +20,4 @@ public class CanvasClient {
         this.height = height;
     }
 
-    
-
 }

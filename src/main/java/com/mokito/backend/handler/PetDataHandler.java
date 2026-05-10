@@ -70,8 +70,10 @@ public class PetDataHandler {
 
         int x = petMoveNode.path("x").asInt(0);
         int y = petMoveNode.path("y").asInt(0);
+        String currentAnimation = petMoveNode.path("currentAnimation").asString();
         pet.setX(x);
         pet.setY(y);
+        pet.setCurrentAnimation(currentAnimation);
 
         // Creacion del json
         ObjectNode out = JsonNodeFactory.instance.objectNode();
@@ -79,6 +81,7 @@ public class PetDataHandler {
         ObjectNode petJson = JsonNodeFactory.instance.objectNode();
         petJson.put("x", pet.getX());
         petJson.put("y", pet.getY());
+        petJson.put("currentAnimation", currentAnimation);
         petJson.put(USER_ID_KEY, userId);
 
         out.set(PET_MOVE_KEY, petJson);

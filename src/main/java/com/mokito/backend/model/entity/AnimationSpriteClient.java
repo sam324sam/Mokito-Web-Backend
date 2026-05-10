@@ -1,19 +1,46 @@
 package com.mokito.backend.model.entity;
 
-import java.sql.Blob;
-
 public class AnimationSpriteClient {
-    private Blob image;
+
+    private String name;
+    private byte[] imageBytes;
     private int frameWidth;
     private int frameHeight;
+    private int frameCount;
     private String animationType;
 
-    public Blob getImage() {
-        return image;
+    public int getFrameCount() {
+        return frameCount;
     }
 
-    public void setImage(Blob image) {
-        this.image = image;
+    public void setFrameCount(int frameCount) {
+        this.frameCount = frameCount;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public AnimationSpriteClient(String name, byte[] imageBytes, int frameWidth, int frameHeight,
+            String animationType, int frameCount) {
+        this.name = name;
+        this.imageBytes = imageBytes;
+        this.frameWidth = frameWidth;
+        this.frameHeight = frameHeight;
+        this.animationType = animationType;
+        this.frameCount = frameCount;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public byte[] getImageBytes() {
+        return imageBytes;
+    }
+
+    public void setImageBytes(byte[] imageBytes) {
+        this.imageBytes = imageBytes;
     }
 
     public int getFrameWidth() {
